@@ -1,47 +1,54 @@
 const URL_CHAT_MESSAGES = 'https://mock-api.bootcamp.respondeai.com.br/api/v3/uol/messages'
 const URL_CHAT_SIGN_IN = 'https://mock-api.bootcamp.respondeai.com.br/api/v3/uol/participants'
+const URL_CHAT_STATUS = 'https://mock-api.bootcamp.respondeai.com.br/api/v3/uol/status'
 
 const divMainContent = document.querySelector('.main-content')
+let userName
 
 function initPage() {
-    // const userName = getUserName('Digite seu nome de usuário.')
-    const userName = '👹'
+    userName = getUserName('Digite seu nome de usuário.')
 
-    // signInUserName(userName)
+    updateMessagesForUser()
 
-    getMessages()
-    setInterval(getMessages, 3000)
-
-
+    notifyServerThatUserIsLogged()
 }
 
-function isAValidUserName(userName) {
+function updateMessagesForUser() {
+    getMessages()
+    setInterval(getMessages, 3000)
+}
+
+function notifyServerThatUserIsLogged() {
+    setInterval(() => { axios.post(URL_CHAT_STATUS, { name: userName }) }, 5000)
+}
+
+function isAValidUserName(testUserName) {
     const invalidUserNames = [undefined, null, '']
-    
-    for (value of invalidUserNames) {
-        if(value === userName) return false
+
+    for (let value of invalidUserNames) {
+        if (value === testUserName) return false
     }
 
     return true
 }
 
-function getUserName(initialPromptMessage) {
+function getUserName() {
     const promptMessage = 'Digite seu nome de usuário.'
 
-    let userName = prompt(initialPromptMessage)
     while (!isAValidUserName(userName)) userName = prompt(promptMessage)
+
+    const request = signInUserName(userName)
+    request.catch(() => userName = getUserName())
 
     return userName
 }
 
-function signInUserName(userName) {
+function signInUserName() {
     const signInData = {
         name: userName
     }
-    const request = axios.post(URL_CHAT_SIGN_IN, signInData)
 
-    const alreadyUtilyzedUserNameMessage = 'Este nome de usuário já está sendo utilizado!'
-    request.catch(() => {getUserName(alreadyUtilyzedUserNameMessage)})
+    return axios.post(URL_CHAT_SIGN_IN, signInData)
 }
 
 function getMessages() {
@@ -67,11 +74,11 @@ function renderMessages(messages) {
 }
 
 function goToLastMessage() {
-    divMainContent.querySelector('.message:last-child').scrollIntoView()
+    divMainContent.lastElementChild.scrollIntoView({ behavior: 'smooth' })
 }
 
 function renderStatusMessage(message) {
-    const {time, from, text} = message
+    const { time, from, text } = message
 
     divMainContent.innerHTML += `<div class="message status">
         <span class="message-time">(${time})</span>
@@ -85,7 +92,7 @@ function renderStatusMessage(message) {
 }
 
 function renderMessage(message) {
-    const {time, from, to, text} = message
+    const { time, from, to, text } = message
 
     divMainContent.innerHTML += `<div class="message">
         <span class="message-time">(${time})</span>
@@ -99,7 +106,9 @@ function renderMessage(message) {
 }
 
 function renderPrivateMessage(message) {
-    const {time, from, to, text} = message
+    const { time, from, to, text } = message
+
+    if (to !== userName) return
 
     divMainContent.innerHTML += `<div class="message reserved">
         <span class="message-time">(${time})</span>
@@ -112,8 +121,28 @@ function renderPrivateMessage(message) {
     </div>`
 }
 
-function sendMessage(message, userName) {
-    
+function handleClick() {
+    const inputElement = document.querySelector('.footer input')
+    const textMessage = inputElement.value
+
+    sendMessage(textMessage, 'Todos')
+
+    inputElement.value = ''
+}
+
+function sendMessage(textMessage, toUserName) {
+    const message = {
+        from: userName,
+        to: toUserName,
+        text: textMessage,
+        type: "message"
+    }
+
+    axios.post(URL_CHAT_MESSAGES, message).catch(() => window.location.reload())
+}
+
+function handleKeyPress(event) {
+    if (event.key === 'Enter') handleClick()
 }
 
 window.onload = initPage
